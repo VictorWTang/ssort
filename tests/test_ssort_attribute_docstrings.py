@@ -7,7 +7,7 @@ def _clean(text):
     return textwrap.dedent(text).strip() + "\n"
 
 
-def test_basic():
+def test_attribute_docstring():
     original = _clean(
         """
         class Foo:
