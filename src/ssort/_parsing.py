@@ -58,19 +58,46 @@ def split(
     indent_text = " " * next_node.col_offset
     next_indent_text = ""
 
+    fetch_both_nodes = False
     while next_node:
-        this_node, next_node = next_node, next(nodes, None)
-        this_end_row, this_end_col = next_end_row, next_end_col
-        this_indent_text = next_indent_text
+        if fetch_both_nodes:
+            fetch_both_nodes = False
+            this_node, next_node = next(nodes, None), next(nodes, None)
+            if this_node is None:
+                break
 
-        if next_node is not None:
-            next_start_row, next_start_col = _find_start(next_node)
-            next_end_row, next_end_col = _find_end(next_node)
+            start_row, start_col = _find_start(this_node)
+            this_end_row, this_end_col = _find_end(this_node)
+            this_indent_text = ""
+            if next_node is not None:
+                next_indent_text = ""
+                next_start_row, next_start_col = _find_start(next_node)
+                next_end_row, next_end_col = _find_end(next_node)
+                next_indent_text = indent_text if this_end_row == next_end_row else ""
+        else:
+            this_node, next_node = next_node, next(nodes, None)
+            this_end_row, this_end_col = next_end_row, next_end_col
+            this_indent_text = next_indent_text
 
-        start_row = next_row
-        start_col = next_col
+            if next_node is not None:
+                next_start_row, next_start_col = _find_start(next_node)
+                next_end_row, next_end_col = _find_end(next_node)
 
-        if next_node is not None and this_end_row == next_end_row:
+            start_row = next_row
+            start_col = next_col
+
+        if (
+            isinstance(this_node, (ast.AnnAssign, ast.Assign))
+            and isinstance(next_node, ast.Expr)
+            and isinstance(next_node.value, ast.Constant)
+            and isinstance(next_node.value.value, str)
+        ):
+            # This node is an assignment and the next node is a docstring.
+            # Include the docstring with this node.
+            fetch_both_nodes = True
+            end_row = next_end_row
+            end_col = next_end_col
+        elif next_node is not None and this_end_row == next_end_row:
             # There is another statement on the same line.  It should be
             # possible to claim as far as the start of the next node for this
             # node, but this space can only contain semicolons and whitespace
@@ -186,9 +213,7 @@ def split_class(statement):
         head_text = head_text_padded[len(text_padded) - len(text) :]
 
         body_text_padded = (
-            (head_end_row) * "\n"
-            + head_end_col * " "
-            + text_padded[head_end_offset:]
+            (head_end_row) * "\n" + head_end_col * " " + text_padded[head_end_offset:]
         )
 
         body_statements = list(
