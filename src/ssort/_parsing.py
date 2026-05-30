@@ -3,7 +3,6 @@ import warnings
 from io import StringIO
 from token import NAME
 from tokenize import generate_tokens
-from typing import Any
 
 from ssort._exceptions import ParseError
 from ssort._statements import Statement
